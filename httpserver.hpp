@@ -21,7 +21,8 @@
 #include <chrono>
 #include <functional>
 #include <sstream>
-
+#include <fstream>
+#include <iostream>
 
 #include "utils.hpp"
 
@@ -73,7 +74,7 @@ public:
         }
         // Using a for loop with iterator
         for(auto it = ++std::begin(lines); it != std::end(lines); ++it) {
-            std::cout << "H: " << *it << "\n";
+            // std::cout << "H: " << *it << "\n";
             if (!it->empty()) {
                 headers.AddRaw(*it);
             }
@@ -81,11 +82,88 @@ public:
     }
 };
 
+class ByteBuffer {
+public:
+    std::vector<std::uint8_t> out;
+
+    void write(std::string text) {
+        for (auto c : text) {
+            out.push_back(c);
+        }
+    }
+
+    void writefile(std::string filename) {
+
+        std::streampos size;
+        char * memblock;
+
+        std::ifstream file ("/Users/martin/Downloads/IMG_1794.JPG", std::ios::in|std::ios::binary|std::ios::ate);
+        if (file.is_open())
+        {
+            size = file.tellg();
+            memblock = new char [size];
+            file.seekg (0, std::ios::beg);
+            file.read (memblock, size);
+            file.close();
+
+            for (int i=0;i<size;i++) {
+                out.push_back(memblock[i]);
+            }
+
+            delete[] memblock;
+        }
+    }
+
+    ByteBuffer& operator<<(const char* bb) {
+        for (int i=0;i<strlen(bb);i++) {
+            out.push_back(bb[i]);
+        }
+        return *this;
+    }
+
+    ByteBuffer& operator<<(const int& bb) {
+        std::string bbs=std::to_string(bb);
+        for (auto c : bbs) {
+            out.push_back(c);
+        }
+        return *this;
+    }
+
+    ByteBuffer& operator<<(const std::string& bb) {
+        for (auto c : bb) {
+            out.push_back(c);
+        }
+        return *this;
+    }
+
+    ByteBuffer& operator<<(const ByteBuffer& bb) {
+        for (auto c : bb.out) {
+            out.push_back(c);
+        }
+        return *this;
+    }
+
+    std::size_t size() {
+        return out.size();
+    }
+
+    std::uint8_t* data() {
+        return out.data();
+    }
+
+};
+
+
+
 class Response {
 public:
-    std::stringstream out;
+    ByteBuffer out;
     Headers headers;
+    int status=200;
+
 };
+
+
 
 using HandlerSignature = void(Request &, Response &);
 

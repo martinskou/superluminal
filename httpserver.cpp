@@ -5,58 +5,38 @@
 #include "httpserver.hpp"
 
 void Server::Handle(int *pnewsock) {
-    /* send(), recv(), close() */
     int *s = (int *)pnewsock;
 
-    std::cout << "Thread ID " << std::this_thread::get_id() << std::endl;
+    // std::cout << "Thread ID " << std::this_thread::get_id() << std::endl;
 
     struct timeval timeout;
-    timeout.tv_sec = 1;
+    timeout.tv_sec = 10;
     timeout.tv_usec = 0;
     setsockopt(*s, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
     char buffer[10240]; // 10 kb, just in case
     int receivedBCount = recv(*s,&buffer,10240,0); // Receive the request
-    if (receivedBCount == 0) {
-        std::cout << "Timeout error: " << std::endl;
-    } else if (receivedBCount == -1) {
-        std::cout << "Error: "  << errno << std::endl;
-        if ((errno == EWOULDBLOCK) or (errno == EAGAIN)) {
-            std::cout << "Error: Timeout" << std::endl;
-        }
-    } else if (receivedBCount > 0) {
+    if (receivedBCount <= 0) {
+        std::cout << "Error (" << receivedBCount << ") : " << errno << std::endl;
+    } else {
 
         auto req = Request(std::string(buffer));
-        //std::cout << "Method: " << req.method << std::endl;
-        //std::cout << "URL: " << req.url << std::endl;
-        //std::cout << "HOST: " << req.headers.Get("host") << std::endl;
-
         // std::this_thread::sleep_for (std::chrono::seconds(5));
-
 
         Response res;
         user_handler(req,res);
 
+        ByteBuffer out;
 
-        std::string xx="HTTP/1.1 200 OK\n";
-        send(*s, xx.c_str(), xx.size(), 0);
-
-        xx="Server: superlum\n";
-        send(*s, xx.c_str(), xx.size(), 0);
-
+        out << "HTTP/1.1 " << res.status << " OK\n";
+        out << "Server: superluminal\n";
         for (auto x : res.headers.GetRaw()) {
-            std::string xx=x+"\n";
-            send(*s, xx.c_str(), xx.size(), 0);
+            out << x << "\n";
         }
+        out << "Content-Length: " << res.out.size() << "\n\n";
+        out << res.out;
 
-        xx="Content-Length: "+std::to_string(res.out.str().size())+"\n";
-        send(*s, xx.c_str(), xx.size(), 0);
-
-        xx="\n\n";
-        send(*s, xx.c_str(), xx.size(), 0);
-
-        send(*s, res.out.str().c_str(), res.out.str().size(), 0);
-
+        send(*s, out.data(), out.size(), 0);
     }
     close(*s);
     free(pnewsock);
