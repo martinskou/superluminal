@@ -15,3 +15,5 @@
 # Build path
 cmake-build-debug
 
+# Mac merde
+.DS_Store
