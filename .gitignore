@@ -13,7 +13,7 @@
 *.app
 
 # Build path
-cmake-build-debug
+cmake-build*
 
 # Mac merde
 .DS_Store

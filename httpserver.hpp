@@ -8,16 +8,12 @@
 #include <iostream>
 #include <map>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <thread>
-#include <errno.h>
 #include <chrono>
 #include <functional>
 #include <sstream>
@@ -106,6 +102,7 @@ public:
             file.read (memblock, size);
             file.close();
 
+            out.reserve(size);
             for (int i=0;i<size;i++) {
                 out.push_back(memblock[i]);
             }

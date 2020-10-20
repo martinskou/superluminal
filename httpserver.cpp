@@ -10,7 +10,7 @@ void Server::Handle(int *pnewsock) {
     // std::cout << "Thread ID " << std::this_thread::get_id() << std::endl;
 
     struct timeval timeout;
-    timeout.tv_sec = 10;
+    timeout.tv_sec = 2;
     timeout.tv_usec = 0;
     setsockopt(*s, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
