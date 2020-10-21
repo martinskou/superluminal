@@ -116,3 +116,27 @@ int Server::Start(std::function<HandlerSignature> handle, std::string port, int 
 
     return 0;
 }
+
+
+
+std::function<HandlerSignature> Logger(std::function<HandlerSignature> next_handle) {
+    return [next_handle](Request &req, Response &res) {
+        std::cout << req.url << std::endl;
+        next_handle(req,res);
+    };
+}
+
+
+std::function<HandlerSignature> Assets(std::function<HandlerSignature> next_handle, std::string root, std::string path) {
+    return [next_handle,root,path](Request &req, Response &res) {
+        if (req.url.starts_with(path)) {
+            std::string fp=req.url.substr(path.size(),req.url.size()-path.size());
+            fp=root+fp;
+            if (std::filesystem::exists(fp)) {
+                res.out.writefile(fp);
+                res.headers.Add("content-type", "image/jpeg");
+            }
+        }
+        next_handle(req,res);
+    };
+}

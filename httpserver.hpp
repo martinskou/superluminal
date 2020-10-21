@@ -19,6 +19,7 @@
 #include <sstream>
 #include <fstream>
 #include <iostream>
+#include <filesystem>
 
 #include "utils.hpp"
 
@@ -93,7 +94,7 @@ public:
         std::streampos size;
         char * memblock;
 
-        std::ifstream file ("/Users/martin/Downloads/IMG_1794.JPG", std::ios::in|std::ios::binary|std::ios::ate);
+        std::ifstream file (filename, std::ios::in|std::ios::binary|std::ios::ate);
         if (file.is_open())
         {
             size = file.tellg();
@@ -171,5 +172,11 @@ public:
     int Start(std::function<HandlerSignature> handle, std::string port, int backlog=10);
 };
 
+
+/* middleware */
+
+std::function<HandlerSignature> Logger(std::function<HandlerSignature> next_handler);
+
+std::function<HandlerSignature> Assets(std::function<HandlerSignature> next_handle, std::string root, std::string path);
 
 #endif //SUPERLUMINAL_HTTPSERVER_HPP
