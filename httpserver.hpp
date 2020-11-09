@@ -163,13 +163,19 @@ public:
 
 
 
+
 using HandlerSignature = void(Request &, Response &);
 
 class Server {
     std::function<HandlerSignature> user_handler;
+    bool run;
+    std::thread server_thread;
 public:
+    void SendResponse(int *s, Response &res);
     void Handle(int*);
-    int Start(std::function<HandlerSignature> handle, std::string port, int backlog=10);
+    void ListenLoop(int sock, int backlog, int threads);
+    int Start(std::function<HandlerSignature> handle, std::string port, int backlog=10, bool background=false, int threads=4);
+    void Wait();
 };
 
 

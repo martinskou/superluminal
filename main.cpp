@@ -7,8 +7,8 @@
 
 void handle(Request &req, Response &res)
 {
-    std::cout << "METHOD: " << req.method << std::endl;
-    std::cout << "HOST: " << req.headers.Get("host") << std::endl;
+    std::cout << req.method << " [" << req.url << "] " << std::this_thread::get_id() << std::endl;
+//    std::cout << "HOST: " << req.headers.Get("host") << std::endl;
 
     if (req.url=="/file") {
         res.out.writefile("/Users/martin/Downloads/IMG_1794.JPG");
@@ -23,8 +23,26 @@ void handle(Request &req, Response &res)
 }
 
 
+
 int main() {
+
     Server s=Server();
-    s.Start(Logger(Assets(handle,"..", "/assets")),"8080");
+    s.Start(Logger(
+            Assets(handle,"..", "/assets")),"8080",50,true,16);
+    s.Wait();
+
+
+    /*
+    ThreadPool pool(4);
+
+// enqueue and store future
+    auto result = pool.enqueue([](int answer) { return answer; }, 42);
+    auto result2 = pool.enqueue([](int answer) { std::cout << "x" << std::endl; return answer; }, 13);
+
+// get result from future
+    std::cout << result.get() << std::endl;
+
+//    result2.wait();
+*/
     return 0;
 }

@@ -4,15 +4,33 @@
 
 #include "httpserver.hpp"
 
+void Server::SendResponse(int *s, Response &res) {
+    ByteBuffer out;
+
+    out << "HTTP/1.0 " << res.status << " OK\n";
+    out << "Server: superluminal\n";
+    for (auto x : res.headers.GetRaw()) {
+        out << x << "\n";
+    }
+    out << "Content-Length: " << res.out.size() << "\n\n";
+    out << res.out;
+
+//    std::cout << out.data() << std::endl;
+
+    send(*s, out.data(), out.size(), 0);
+
+}
+
+
 void Server::Handle(int *pnewsock) {
     int *s = (int *)pnewsock;
 
-    // std::cout << "Thread ID " << std::this_thread::get_id() << std::endl;
+//    std::cout << "Thread ID " << std::this_thread::get_id() << std::endl;
 
     struct timeval timeout;
-    timeout.tv_sec = 2;
+    timeout.tv_sec = 5;
     timeout.tv_usec = 0;
-    setsockopt(*s, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+   // setsockopt(*s, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
     char buffer[10240]; // 10 kb, just in case
     int receivedBCount = recv(*s,&buffer,10240,0); // Receive the request
@@ -26,24 +44,61 @@ void Server::Handle(int *pnewsock) {
         Response res;
         user_handler(req,res);
 
-        ByteBuffer out;
-
-        out << "HTTP/1.1 " << res.status << " OK\n";
-        out << "Server: superluminal\n";
-        for (auto x : res.headers.GetRaw()) {
-            out << x << "\n";
-        }
-        out << "Content-Length: " << res.out.size() << "\n\n";
-        out << res.out;
-
-        send(*s, out.data(), out.size(), 0);
+        SendResponse(s,res);
     }
     close(*s);
     free(pnewsock);
 
 }
 
-int Server::Start(std::function<HandlerSignature> handle, std::string port, int backlog) {
+void Server::ListenLoop(int sock, int backlog, int threads) {
+
+    if (listen(sock, backlog) == -1) {
+        std::cerr << "Could not listen" << std::endl;
+        return; // return false;
+    }
+
+    ThreadPool pool(threads);
+
+    run=true;
+    while (run) {
+        socklen_t size = sizeof(struct sockaddr_in);
+        struct sockaddr_in their_addr;
+        int newsock = accept(sock, (struct sockaddr*)&their_addr, &size);
+        if (newsock == -1) {
+            std::cerr << "Could not accept" << std::endl;
+        }
+        else {
+            int *safesock = (int*)malloc(sizeof(int));
+            if (safesock) {
+                *safesock = newsock;
+
+                if (false) {
+                    std::thread t=std::thread(&Server::Handle, this, safesock);
+                    t.detach();
+//                std::thread thread(handle, safesock);
+//                thread.join();
+
+                } else {
+
+//                    pool.enqueue([](int answer) { return answer; }, 42);
+                    pool.enqueue(&Server::Handle, this, safesock);
+                }
+
+
+
+            }
+            else {
+                std::cerr << "Malloc error" << std::endl;
+            }
+        }
+    }
+
+    close(sock);
+  //  return true;
+}
+
+int Server::Start(std::function<HandlerSignature> handle, std::string port, int backlog, bool background, int threads) {
     user_handler=handle;
 
     int sock;
@@ -80,48 +135,27 @@ int Server::Start(std::function<HandlerSignature> handle, std::string port, int 
 
     freeaddrinfo(res);
 
-    /* Listen */
-    if (listen(sock, backlog) == -1) {
-        std::cerr << "Could not listen" << std::endl;
-        return 0;
-    }
-
     std::cout << "Starting server on port " << port << std::endl;
 
-    while (1) {
-        socklen_t size = sizeof(struct sockaddr_in);
-        struct sockaddr_in their_addr;
-        int newsock = accept(sock, (struct sockaddr*)&their_addr, &size);
-        if (newsock == -1) {
-            std::cerr << "Could not accept" << std::endl;
-        }
-        else {
-            int *safesock = (int*)malloc(sizeof(int));
-            if (safesock) {
-                *safesock = newsock;
-
-                std::thread thread(&Server::Handle, this, safesock);
-//                std::thread thread(handle, safesock);
-
-                thread.detach();
-//                thread.join();
-            }
-            else {
-                std::cerr << "Malloc error" << std::endl;
-            }
-        }
+    if (background) {
+        server_thread=std::thread( &Server::ListenLoop, this, sock, backlog, threads);
+    } else {
+        ListenLoop(sock, backlog, threads);
     }
-
-    close(sock);
 
     return 0;
 }
 
+void Server::Wait() {
+    if (server_thread.joinable()) {
+        server_thread.join();
+    }
+}
 
 
 std::function<HandlerSignature> Logger(std::function<HandlerSignature> next_handle) {
     return [next_handle](Request &req, Response &res) {
-        std::cout << req.url << std::endl;
+//        std::cout << "LOGGER: " << req.url << std::endl;
         next_handle(req,res);
     };
 }
